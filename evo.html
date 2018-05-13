@@ -1,0 +1,158 @@
+<div class="col-md-8 col-md-offset-2">
+<div id="shops"></div>
+<script>
+var s=new Array(), p=new Array(), good=new Array();
+// Get shops from the Integral's DB
+<!-- Begin:intShops -->s['{uid}']={i:{id},n:'{n}'};
+<!-- End:intShops -->
+// Get products
+<!-- Begin:intProds -->p['{uid}']={i:{id},s:'{sid}',n:'{tname}',stock:'0{stock}',min:'0{min}',ask:'0{ask}',costPrice:'{price}'};
+<!-- End:intProds -->
+// Get auth code
+<!-- Begin:intMyAuth -->
+var auth='{auth}';
+<!-- End:intMyAuth -->
+
+// Get shops list from the Evotor cloud
+var req = new XMLHttpRequest(); 
+req.open('GET','https://api.evotor.ru/api/v1/inventories/stores/search',true); 
+req.setRequestHeader('X-Authorization', auth);
+req.send();
+req.onload=function(e) {
+	if (this.status == 200) {
+	    var shops=JSON.parse(this.responseText),
+	        shop=new Array(),
+	        shop_list='';
+
+        for(var i in shops){
+            if(s[shops[i].uuid]===undefined)
+                addShop(shops[i]);
+            shop_list+='<h4><span class="icon-shopping-cart"></span>&nbsp;'+shops[i].name
+                        +'</h4><div class="panel panel-primary"><div class="panel-heading"><i class="icon-package text-primary"></i> Товары <span class="gray">(остаток / минимальный остаток / минимальный заказ)</span></div><div class="panel-body"><div id="'+shops[i].uuid+'"></div></div></div>'
+                        +'<div class="panel panel-primary"><div class="panel-heading"><i class="icon-tablet text-primary"></i> Терминалы</div><div class="panel-body"><div  id="t'+shops[i].uuid+'"></div></div></div>'
+                        +'<div class="panel panel-primary"><div class="panel-heading"><i class="icon-users text-primary"></i> Кассиры:</div><div class="panel-body"><div id="e'+shops[i].uuid+'"></div></div></div>';
+            shop[i] = new XMLHttpRequest();
+// Get the products list for this shop
+            shop[i].open('GET','https://api.evotor.ru/api/v1/inventories/stores/'+shops[i].uuid+'/products',true); 
+            shop[i].setRequestHeader('X-Authorization', auth);
+            shop[i].send();
+            shop[i].onload=function(e) {
+            	if (this.status == 200) {
+            		var prods=JSON.parse(this.responseText),
+            	        prod=new Array(),
+            	        prod_list='';
+                    for(var j in prods)
+                        if(!prods[j].group){
+                            prod_list+='<div class="product"><a onclick="toggleDiv(\''+prods[j].uuid+'\')">'+prods[j].name+', '+prods[j].costPrice+' руб</a> <span id="'+prods[j].uuid+'"> ';
+                            if(p[prods[j].uuid]===undefined)
+                                addProd(prods[j],s[shops[i].uuid].i);
+                            else
+                                prod_list+= '('+parseInt(p[prods[j].uuid].stock)+' / '+parseInt(p[prods[j].uuid].min)+' / '+parseInt(p[prods[j].uuid].ask)+')';
+                            prod_list+='</span></div>';
+                        }
+                    document.getElementById(shops[i].uuid).innerHTML=prod_list;
+            	}
+            }
+        }
+        document.getElementById('shops').innerHTML=shop_list;
+	}
+    req.abort();
+    req1 = new XMLHttpRequest(); 
+    req1.open('GET','https://api.evotor.ru/api/v1/inventories/employees/search',true); 
+    req1.setRequestHeader('X-Authorization', auth);
+    req1.send();
+    req1.onload=function(e) {
+    	if (this.status == 200) {
+    	    var emps=JSON.parse(this.responseText),
+    	        emp=new Array(),
+    	        emp_list='';
+            for(var k in emps)
+                for(var l in emps[k].stores)
+                    document.getElementById('e'+emps[k].stores[l]).innerHTML+='<a><p>'+emps[k].name+'</p></a>';
+    	}
+        req1.abort();
+    }
+// Get the list of the Evotor terminals
+    req2 = new XMLHttpRequest(); 
+    req2.open('GET','https://api.evotor.ru/api/v1/inventories/devices/search',true); 
+    req2.setRequestHeader('X-Authorization', auth);
+    req2.send();
+    req2.onload=function(e) {
+    	if (this.status == 200) {
+    	    var ters=JSON.parse(this.responseText),
+    	        ter=new Array(),
+    	        ter_list='';
+            for(var n in ters)
+                document.getElementById('t'+ters[n].storeUuid).innerHTML+='<a><p>'+ters[n].name+'</p></a>';
+    	}
+        req2.abort();
+    }
+}
+// Save the new shop to the Integral's DB
+function addShop(new_shop){
+    shop = new XMLHttpRequest(); 
+    shop.open('GET','index.php?db={_global_.z}&id=205&a=edit_obj&do=new_object&next_act=nul&up=1&val='+new_shop.uuid+'&t227={_global_.USER_ID}&t220='+new_shop.name,true); 
+    shop.send();
+    shop.onload=function(e) {
+    	if (this.status == 200) {
+    	    var sid=JSON.parse(this.responseText)
+            s[new_shop.uuid]={i:sid.id,n:new_shop.name};
+       	}
+        shop.abort();
+    }
+}
+function toggleDiv(d){
+    document.getElementById(d).innerHTML='<div class="edit"><div class="input-wrapper" data-title="остаток"><input id="s'+d+'" type="text" size="4" value="'+parseInt(p[d].stock)
+                                        +'"></div><div class="input-wrapper" data-title="мин.&nbsp;остаток"><input  id="m'+d+'" type="text" size="4" value="'+parseInt(p[d].min)
+                                        +'"></div><div class="input-wrapper" data-title="мин.&nbsp;заказ"><input  id="a'+d+'" type="text" size="4" value="'+parseInt(p[d].ask)
+                                        +'"></div><input type="submit" onclick="saveDiv(\''+d+'\')" value="Сохранить">&nbsp;<span style="display:none;" id="b'+d+'"><span class="green"><i class="icon-check-square"></i></span></span></div>';
+    document.getElementById('s'+d).focus();
+    document.getElementById('s'+d).select();
+}
+// Save the parameters for this Product
+function saveDiv(d){
+    save = new XMLHttpRequest(); 
+    save.open('GET','index.php?db={_global_.z}&a=edit_obj&next_act=nul&do=save_val&id='+p[d].i
+                    +'&t216='+document.getElementById('s'+d).value+'&t217='+document.getElementById('m'+d).value+'&t716='+document.getElementById('a'+d).value,true); 
+    save.send();
+    save.onload=function(e) {
+        save.abort();
+        document.getElementById('b'+d).style.display='inline';
+    }
+}
+// Save the new product to the Integral's DB
+function addProd(new_prod, shop){
+    prod = new XMLHttpRequest(), bc=new Array();
+// Create the Product name
+    prod.open('GET','index.php?db={_global_.z}&id=207&a=edit_obj&do=new_object&up=1&next_act=nul&val='+new_prod.name,true); 
+    prod.send();
+    prod.onload=function() {
+    	if (this.status == 200) {
+    	    if(this.responseText.indexOf('<b>'+new_prod.name+'</b>')==-1){
+        	    var sid=JSON.parse(this.responseText);
+                good[new_prod.name]=sid.id;
+    	    }
+    	    else
+                good[new_prod.name]=this.responseText.split('&')[1].substring(3);
+// Create the bar-code records
+            for(var i in new_prod.barCodes){
+                bc[i] = new XMLHttpRequest(); 
+                bc[i].open('GET','index.php?db={_global_.z}&id=208&a=edit_obj&next_act=nul&do=new_object&up='+good[new_prod.name]+'&val='+new_prod.barCodes[i],true); 
+                bc[i].send();
+                bc[i].onload=function(e) {
+                    bc[i].abort();
+                }
+    	    }
+// Save the product code for this product name
+            bc["a"] = new XMLHttpRequest(); 
+            bc["a"].open('GET','index.php?db={_global_.z}&id=211&a=edit_obj&next_act=nul&do=new_object&up='+shop+'&val='+new_prod.uuid+'&t213='+good[new_prod.name]+'&t1025='+new_prod.costPrice,true); 
+            bc["a"].send();
+            bc["a"].onload=function(e) {
+                bc["a"].abort();
+            }
+       	}
+        prod.abort();
+    }
+}
+</script>
+</div>
