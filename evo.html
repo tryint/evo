@@ -3,10 +3,12 @@
 <script>
 var s=new Array(), p=new Array(), good=new Array();
 // Get shops from the Integral's DB
-<!-- Begin:intShops -->s['{uid}']={i:{id},n:'{n}'};
+<!-- Begin:intShops -->
+s['{uid}']={i:{id},n:'{n}'};
 <!-- End:intShops -->
 // Get products
-<!-- Begin:intProds -->p['{uid}']={i:{id},s:'{sid}',n:'{tname}',stock:'0{stock}',min:'0{min}',ask:'0{ask}',costPrice:'{price}'};
+<!-- Begin:intProds -->
+p['{uid}']={i:{id},s:'{sid}',n:'{tname}',stock:'0{stock}',min:'0{min}',ask:'0{ask}',costPrice:'{price}'};
 <!-- End:intProds -->
 // Get auth code
 <!-- Begin:intMyAuth -->
@@ -57,6 +59,7 @@ req.onload=function(e) {
         document.getElementById('shops').innerHTML=shop_list;
 	}
     req.abort();
+// Get the list of employees
     req1 = new XMLHttpRequest(); 
     req1.open('GET','https://api.evotor.ru/api/v1/inventories/employees/search',true); 
     req1.setRequestHeader('X-Authorization', auth);
